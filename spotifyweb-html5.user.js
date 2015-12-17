@@ -32,27 +32,6 @@
       {
         console.log("-<-< embedSWF =>", arguments, arguments[9].toString(), this, properties);
 
-        
-        function get_pong(ping)
-        {
-           // http://crossorigin.me/http://ping-pong.spotify.nodestuff.net/64-104-120-204-164-75-214-221-224-109-28-127-73-236-239-150-88-238-177-90
-
-           console.log("ping-pong", ping);
-         
-           var xhr = new XMLHttpRequest();
-           xhr.open("GET", "https://crossorigin.me/http://ping-pong.spotify.nodestuff.net/" + ping.replace(/ /g,"-"), true);
-           xhr.responseType = "json";
-           xhr.send();
-       
-           /* believe me, I know this sucks */
-           while (xhr.readyState != xhr.DONE){}
-           
-           console.log("pong", xhr);
-           
-           return xhr.response.pong.replace(/-/g," ");
-         
-         }
-
         /* create our audio player in substitution of the swf abobination */
         var dummy = document.createElement("audio");
         
@@ -64,7 +43,7 @@
         dummy.autoplay       = false;
         dummy.volume         = 1.0;
         
-        dummy.sp_run         = function(proof) { console.log("-<-< sp_run =>", arguments); return get_pong(proof); };
+        dummy.sp_run         = function(proof) { console.log("-<-< sp_run =>", arguments); return unsafeWindow.proof; };
         dummy.sp_hasSound    = function()      { return true };
         dummy.sp_load        = function(player_id, raw_uri, options)
         {
@@ -179,6 +158,36 @@ function when_external_loaded()
 {
 // ---
   
+
+ function get_pong(ping)
+ {
+   // http://crossorigin.me/http://ping-pong.spotify.nodestuff.net/64-104-120-204-164-75-214-221-224-109-28-127-73-236-239-150-88-238-177-90
+
+   console.log("ping-pong", ping);
+
+   var xhr = new XMLHttpRequest();
+   xhr.open("GET", "https://crossorigin.me/http://ping-pong.spotify.nodestuff.net/" + ping.replace(/ /g,"-"), true);
+   xhr.responseType = "json";
+
+   xhr.onloadend = function()
+   {
+     if (xhr.readyState != xhr.DONE)
+       return;
+
+     console.log("pong", xhr);
+     window.proof = xhr.response.pong.replace(/-/g," ");
+     
+     if (!sp_ws)
+       return;
+     
+     sp_ws.send(`{"id":1,"name":"sp/pong_flash2","args":["` + window.proof + `"]}`);
+     sp_ws.send(`{"id":2,"name":"sp/work_done","args":["undefined"]}`);
+     
+   }
+
+   xhr.send();
+ }
+  
 /* wait until the page is ready for the code snippet to run */
 document.addEventListener('DOMContentLoaded', function()
 {
@@ -187,6 +196,8 @@ document.addEventListener('DOMContentLoaded', function()
   WebSocket.prototype.sond = WebSocket.prototype.send;
   WebSocket.prototype.send = function(msg)
   {
+    window.sp_ws = this;
+
     if (this.onmessage && this.sucks !== true)
     {
       callback = this.onmessage;
@@ -196,7 +207,13 @@ document.addEventListener('DOMContentLoaded', function()
       this.onmessage = function(message)
       {
         var json_msg = JSON.parse(message.data);
-        
+
+        if (json_msg && json_msg.message && json_msg.message[0] == 'ping_flash2' && json_msg.message[1])
+        {
+          console.log("getting preventive pong", json_msg);
+          get_pong(json_msg.message[1]);
+        }
+
         if (json_msg.id === window.last_track_msg)
           console.info("<- ws recv: ", window.last_track_msg, message.data);
         
@@ -210,6 +227,13 @@ document.addEventListener('DOMContentLoaded', function()
     }
 
     var json_msg = JSON.parse(msg);
+    
+    // block the flash pong reply until we have the correct reply for the challenge
+    if (typeof window.proof !== "string" && json_msg && (json_msg.name == 'sp/pong_flash2' || json_msg.name == 'sp/work_done'))
+    {
+      console.info("-> blocking sent message until we have challenge: ",  json_msg.id, msg);
+      return;
+    }
 
     // get the http link instead or rtmp, thankies!
     if (json_msg && json_msg.name == 'sp/track_uri')
@@ -220,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function()
     }
     //dec_msg = json_msg.name === 'sp/hm_b64' ? atob(json_msg.args[0]) : null;
     
-    //console.info("-> ws send: ", msg); //json_msg, dec_msg);
+    console.info("-> ws send: ", msg); //json_msg, dec_msg);
     
     //if (json_msg.name !== 'sp/log')
      return WebSocket.prototype.sond.apply(this, arguments);
