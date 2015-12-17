@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name        HTML5 thingie for Spotify Web Player
+// @description Play music on the browser without having to install Flash Player. Yes, I know why SWF bridges exist.
+// @author      Swyter
 // @namespace   https://greasyfork.org/users/4813-swyter
 // @match       https://play.spotify.com/*
-// @version     2015.12.15
+// @version     2015.12.17
 // @noframes
-// @icon        https://i.imgur.com/CecLLKu.png
+// @icon        https://i.imgur.com/LHkCkka.png
 // @grant       none
 // @run-at      document-start
-// @description asdf
 // ==/UserScript==
 
   /* it's random, trust me, I'm Sony! */
