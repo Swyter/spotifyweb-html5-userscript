@@ -4,7 +4,7 @@
 // @author      Swyter
 // @namespace   https://greasyfork.org/users/4813-swyter
 // @match       https://play.spotify.com/*
-// @version     2015.12.17
+// @version     2016.01.29
 // @noframes
 // @icon        https://i.imgur.com/LHkCkka.png
 // @grant       none
@@ -34,15 +34,15 @@
 
         /* create our audio player in substitution of the swf abobination */
         var dummy = document.createElement("audio");
-        
+
         dummy.id             = properties.id;
         dummy["instanceid"]  = properties.instanceId;
-        
+
         dummy.loop           = false;
         dummy.preload        = 'auto';
         dummy.autoplay       = false;
         dummy.volume         = 1.0;
-        
+
         dummy.sp_run         = function(proof) { console.log("-<-< sp_run =>", arguments); return unsafeWindow.proof; };
         dummy.sp_hasSound    = function()      { return true };
         dummy.sp_load        = function(player_id, raw_uri, options)
@@ -52,8 +52,8 @@
           // uri :                                          "mp3:/mp3/6b381db769d31beb544ba67eb7cbc3ce4fc8ab4c.mp3?Expires=1450045402&Signature=dgvyYa~K2P-v6ArrdVBmRxAF44JTJhpk6PJqQXzHbMOmtcHw~eY~E1C0GgviL~O63-EhejMzCB~dLjlgaug-TQej8mCjvroY8crd776GRsBx0AJz4pnp3ZH03T3PnUecBHRwMrg28pjAbi1xWmuybyNvwWpitB9Q~hiCKxMzUhnXRjqpWJKZVrLDY7~iXB2GlptZNz8RZoapexeEkNA2kgjnYXk4JTe4CNTdRSmn~Uf9YHvxJdA4ttlRfDt353eSxCDTXKQdA7GkEBTKJfDvN6NgXyw8~Tm8tBHk9VYYn7jZMLYckwqi3OJAonof2SZZlHZoepgympEYxK8BdkvZMg__&Key-Pair-Id=APKAJXKSII4ED2EOGZZA"
           // options.server: "http://dsu0uct5x2puz.cloudfront.net/cfx/st"
 
-          var uri = options.server.match(/(.+\/\/[^\/]+?)\//)[1] + raw_uri.split(":")[1];         
-          
+          var uri = options.server.match(/(.+\/\/[^\/]+?)\//)[1] + raw_uri.split(":")[1];
+
           console.log("sp_load =>", uri, arguments, this);
           this.src = uri;
 
@@ -62,18 +62,23 @@
 
           if (options.autoplay)
             this.play();
-          
+
           console.log(this.paused)
 
           unsafeWindow.Spotify.Instances.get(this.instanceid).audioManager.getPlayerById(player_id).trigger('LOAD', {}, {id: player_id});
         };
-        
+
+        /* dummy functions after __noSuchMethod__ was deprecated in Firefox 44 */
+        dummy.sp_initializePlayerById = function(player_id)      { console.log("=> sp_initializePlayerById",  arguments); };
+        dummy.sp_stop                 = function(player_id)      { console.log("=> sp_stop",                  arguments); };
+
+        /* actual reimplementations of functions that embody the internal SWF interface */
         dummy.sp_setVolume   = function(player_id, vol) { console.log("=> volume", arguments); if (player_id == "main:A" && vol !== 0) this.volume = vol };
         dummy.sp_getVolume   = function(player_id, vol) { console.log("=> golume", arguments); if (player_id == "main:A" && vol !== 0) return parseFloat(this.volume); else return 0 };
         dummy.sp_seek        = function(player_id, pos) { console.log("=> seek",   arguments); this.currentTime = Math.floor(0.001 * pos) };
         dummy.sp_pause       = function(player_id)      { console.log("=> pause",  arguments); this.pause() };
         dummy.sp_resume      = function(player_id)      { console.log("=> pause",  arguments); this.play() };
-        
+
         dummy.sp_playerState = function(player_id)
         {
           return {
@@ -85,12 +90,12 @@
             isPaused: this.paused
           };
         };
-        
+
         dummy.sp_addPlayer   = function(player_index, player_id, player_protocol)
         {
           if (player_id != "main:A")
             return;
-          
+
           var sp_html5_event_listeners =
           {
                    canplay: 'LOAD',
@@ -105,15 +110,15 @@
           function sp_html5_generic_callback(e)
           {
             console.log("sp html5 audio «" + e.type + "» event", e, sp_html5_event_listeners[e.type]);
-            
+
             var ret;
-            
+
             switch(sp_html5_event_listeners[e.type])
             {
               case 'DURATION':
                 ret = {duration: Math.floor(1000 * this.duration)};
                 break;
-              
+
               case 'PROGRESS':
                 ret = {position: Math.floor(1000 * this.currentTime)};
                 break;
@@ -130,7 +135,7 @@
 
           return true;
         };
-        
+
         dummy.__noSuchMethod__  = function(name, params) { console.log('==>>== > invalid function call', name, params); };
 
         /* necessary for the spotify framework to find it in the right place */
@@ -141,12 +146,12 @@
 
         /* tell the spotify framework that the swf embed is ready */
         arguments[9].apply(this, [{success: true}]);
-        
+
         // act as the swf bridge and tell it that the Flash-backend is ready
         // JSInterface.notify(ApplicationEvents.READY,null,1);
         //Spotify.Instances.get(properties.instanceId).audioManager.getInterface()._triggerDeferred('FLASH_AVAILABLE', null);
         Spotify.Instances.get(properties.instanceId).audioManager.getInterface()._triggerDeferred('READY', null);
-        
+
         console.log("AUDIOMANAGER-INTERFACE", properties.id, window.document[properties.id], Spotify.Instances.get(properties.instanceId).audioManager.getInterface(),
                     Spotify.Instances.get(properties.instanceId).audioManager.getInterface().hasSound());
       }
@@ -157,7 +162,7 @@
 function when_external_loaded()
 {
 // ---
-  
+
 
  function get_pong(ping)
  {
@@ -176,18 +181,18 @@ function when_external_loaded()
 
      console.log("pong", xhr);
      window.proof = xhr.response.pong.replace(/-/g," ");
-     
+
      if (!sp_ws)
        return;
-     
-     sp_ws.send(`{"id":1,"name":"sp/pong_flash2","args":["` + window.proof + `"]}`);
-     sp_ws.send(`{"id":2,"name":"sp/work_done","args":["undefined"]}`);
-     
+
+     sp_ws.send(`{"id":` + (window.proof_id || 2) + `,"name":"sp/pong_flash2","args":["` + window.proof + `"]}`);
+     //sp_ws.send(`{"id":2,"name":"sp/work_done","args":["undefined"]}`);
+
    }
 
    xhr.send();
  }
-  
+
 /* wait until the page is ready for the code snippet to run */
 document.addEventListener('DOMContentLoaded', function()
 {
@@ -201,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function()
     if (this.onmessage && this.sucks !== true)
     {
       callback = this.onmessage;
-      
+
       console.log("orig prev callback:", callback);
 
       this.onmessage = function(message)
@@ -214,24 +219,27 @@ document.addEventListener('DOMContentLoaded', function()
           get_pong(json_msg.message[1]);
         }
 
-        if (json_msg.id === window.last_track_msg)
+        //if (json_msg.id === window.last_track_msg)
           console.info("<- ws recv: ", window.last_track_msg, message.data);
-        
+
         //if (json_msg && json_msg.result && json_msg.result.uri)
           //open(json_msg.result.uri);
-        
+
         callback(message);
       }
-      
+
       this.sucks = true;
     }
 
     var json_msg = JSON.parse(msg);
-    
+
     // block the flash pong reply until we have the correct reply for the challenge
-    if (typeof window.proof !== "string" && json_msg && (json_msg.name == 'sp/pong_flash2' || json_msg.name == 'sp/work_done'))
+    if (typeof window.proof !== "string" && json_msg && (json_msg.name == 'sp/pong_flash2')) // || json_msg.name == 'sp/work_done'))
     {
       console.info("-> blocking sent message until we have challenge: ",  json_msg.id, msg);
+
+      window.proof_id = json_msg.id;
+
       return;
     }
 
@@ -243,15 +251,15 @@ document.addEventListener('DOMContentLoaded', function()
       console.info("-> ws send: ",  json_msg.id, msg);
     }
     //dec_msg = json_msg.name === 'sp/hm_b64' ? atob(json_msg.args[0]) : null;
-    
+
     console.info("-> ws send: ", msg); //json_msg, dec_msg);
-    
+
     //if (json_msg.name !== 'sp/log')
      return WebSocket.prototype.sond.apply(this, arguments);
   }
-  
+
 });
-  
+
 // ---
 }
 
@@ -261,3 +269,4 @@ window.document.head.appendChild(
 );
 
 inject_fn.innerHTML = '(' + when_external_loaded.toString() + ')()';
+
