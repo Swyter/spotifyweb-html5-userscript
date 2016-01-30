@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name        HTML5 thingie for Spotify Web Player
-// @description Play music in the browser without having to install Flash Player. Yes, I know why SWF bridges exist.
+// @description Play music on the browser without having to install Flash Player. Yes, I know why SWF bridges exist.
 // @author      Swyter
 // @namespace   https://greasyfork.org/users/4813-swyter
 // @match       https://play.spotify.com/*
-// @version     2016.01.29
-// @noframes
+// @version     2016.01.30
+// /* turns out we now need to run on frames too to make our flashless context menu copying mechanism work */ @noframes
 // @icon        https://i.imgur.com/LHkCkka.png
 // @grant       none
 // @run-at      document-start
@@ -18,6 +18,48 @@
     writable: false,
     value: function(a) { return 0.1337; }
   });
+
+  /* ZeroClipboard.js HTML5 shim, no ridiculous SWF overlay required, sneaky! */
+  Object.defineProperty(window, 'ZeroClipboard',
+  {
+    configurable: false,
+    writable: false,
+    value: function(e)
+    {
+      console.log("ZC constructor", arguments);
+
+      e.addEventListener('click', function (x)
+      {
+        x.preventDefault();
+
+        /* add a dummy input to our page, fill it with our text, select it,
+           copy it, remove our dummy item; voila, typical js kludge! */
+        input = document.createElement('input');
+        input.value = this.dataset.clipboardText;
+
+        document.body.appendChild(input);
+
+        input.select(); document.execCommand('copy');
+
+        document.body.removeChild(input);
+
+        console.log("ZC -> click", this, this.dataset.clipboardText, input, input.value);
+      });
+
+      return {
+        on: function(e, f)
+        {
+          console.log("ZC -> on", arguments, this, this.elem);
+          this.elem.addEventListener(e, f);
+        },
+
+        elem: e
+      };
+    }
+  });
+
+  ZeroClipboard.config = function(){ console.log("ZC -> config", arguments) };
+
 
   /* SWFobject.js faker, sneaky! */
   Object.defineProperty(window, 'swfobject',
@@ -262,6 +304,9 @@ document.addEventListener('DOMContentLoaded', function()
 
 // ---
 }
+
+if (window != window.parent)
+  throw "This should only execute in the main context frame...";
 
 /* inject this cleaning function right in the page to avoid silly sandbox-related greasemonkey limitations */
 window.document.head.appendChild(
