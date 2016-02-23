@@ -11,7 +11,7 @@
 // @run-at      document-start
 // ==/UserScript==
 
-  /* it's random, trust me, I'm Sony! */
+  /* it's random, trust me, I'm Sony! :) */
   Object.defineProperty(window.Math, 'random',
   {
     configurable: false,
