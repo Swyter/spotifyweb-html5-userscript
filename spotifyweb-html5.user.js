@@ -136,8 +136,7 @@
         dummy.sp_load        = function(player_id, raw_uri, options)
         {
           /* if we want to avoid the mixed content warning due to unencrypted/wrong cert for domain we must switch things around
-             e.g: http://audio-mp3-fa.spotify.com => https://audio-mp3-fa.scdn.co
-          */
+             e.g: http://audio-mp3-fa.spotify.com => https://audio-mp3-fa.scdn.co */
           var uri = raw_uri.replace('http://', 'https://').replace('.spotify.com', '.scdn.co');
 
           console.log("sp_load =>", arguments, this, raw_uri, uri);
@@ -145,8 +144,15 @@
           /* grab the encrypted track file */
           xhr = new XMLHttpRequest();
           xhr.open('GET', uri);
-          
-          /* decrypt it after download with the provided song key and some constants */
+          xhr.responseType = "arraybuffer";
+
+          xhr.onloadstart = function(e)
+          {
+            console.log("(XX) ASYNC RETRIEVAL OF ENCRYPTED SONG STARTED, URL: ", this)
+            this['start_date'] = new Date();
+          }
+
+          /* decrypt it asynchronously after download with the provided song key and some hardcoded constants */
           xhr.onloadend = function(e)
           {
             if (this.status !== 200)
@@ -155,18 +161,19 @@
               return;
             }
             
-            console.log("(XX) ENCRYPTED SONG DOWNLOADED: ", this)
+            console.log(`(XX) ENCRYPTED SONG DOWNLOADED in ${(new Date() - this.start_date) / 1e3} secs: `, this)
 
             return;
             
-            //-- audio/mpeg
+            var mp3_enc = this.response;
+            
+            //-- 
             
             /* Stream key derivation algorithm and RC4 decryption reverse-engineered and reimplemented by the unreal @theSmallNothing at GitHub
-               (https://github.com/mattyway/node-spotify-web/pull/2/files) * /
-            
+               (https://github.com/mattyway/node-spotify-web/pull/2/files) */
           
             dummy.src = URL.createObjectURL(
-              new Blob([], {type: 'text/vtt'})
+              new Blob([mp3_dec], {type: 'audio/mpeg'})
             );
 
             if (options.startFrom !== 0)
