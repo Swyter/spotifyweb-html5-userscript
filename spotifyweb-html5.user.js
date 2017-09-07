@@ -3,7 +3,7 @@
 // @description Play music on the browser without having to install Flash Player. Yes, I know why SWF bridges exist.
 // @author      Swyter
 // @namespace   https://greasyfork.org/users/4813-swyter
-// @match       https://play.spotify.com/*
+// @match       https://*.spotify.com/*
 // @version     2016.01.30
 // /* turns out we now need to run on frames too to make our flashless context menu copying mechanism work */ @noframes
 // @icon        https://i.imgur.com/LHkCkka.png
